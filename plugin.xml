@@ -1,0 +1,20 @@
+<library path="src">
+  <class name="LI3DS Plugin" type="rqt_li3ds.li3ds_module.LI3DSPlugin" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      LI3DS
+    </description>
+    <qtgui>
+      <!-- optional grouping...
+      <group>
+        <label>Group</label>
+      </group>
+      <group>
+        <label>Subgroup</label>
+      </group>
+      -->
+      <label>LI3DS</label>
+      <icon type="theme">application-other</icon>
+      <statustip>Great user interface to provide real value.</statustip>
+    </qtgui>
+  </class>
+</library>
