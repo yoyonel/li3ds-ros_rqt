@@ -8,6 +8,8 @@ from python_qt_binding.QtGui import QWidget
 from python_qt_binding.QtCore import Slot
 from PyQt4.QtCore import QTimer
 
+import sys
+
 # from std_msgs.msg import String
 from velodyne_configuration.msg import VLP16_StatusMessage
 from velodyne_configuration.msg import VLP16_DiagnosticsMessage
@@ -37,7 +39,8 @@ class LI3DSPlugin(Plugin):
         self._widget = QWidget()
         # Get path to UI file which is a sibling of this file
         # in this example the .ui and .py file are in the same folder
-        ui_file = os.path.join(rp.get_path('rqt_li3ds'), 'resource', 'LI3DSPlugin.ui')
+        ui_file = os.path.join(rp.get_path('rqt_li3ds'),
+                               'resource', 'LI3DSPlugin.ui')
         # Extend the widget with all attributes and children from UI file
         loadUi(ui_file, self._widget)
         # Give QObjects reasonable names
@@ -48,7 +51,8 @@ class LI3DSPlugin(Plugin):
         # plugin at once, these lines add number to make it easy to
         # tell from pane to pane.
         if context.serial_number() > 1:
-            self._widget.setWindowTitle(self._widget.windowTitle() + (' (%d)' % context.serial_number()))
+            self._widget.setWindowTitle(
+                self._widget.windowTitle() + (' (%d)' % context.serial_number()))
         # Add widget to the user interface
         context.add_widget(self._widget)
 
@@ -56,25 +60,26 @@ class LI3DSPlugin(Plugin):
         # SETTING des connections slots
         # ---------------------------------
         #        rospy.loginfo("Test log!")
-        self._widget.pushButton_record_on.clicked[bool].connect(self.on_pushButton_record_on_clicked)
-        self._widget.pushButton_record_off.clicked[bool].connect(self.on_pushButton_record_off_clicked)
+        self._widget.pushButton_record_on.clicked[
+            bool].connect(self.on_pushButton_record_on_clicked)
+        self._widget.pushButton_record_off.clicked[
+            bool].connect(self.on_pushButton_record_off_clicked)
         # ---------------------------------
 
+        #
+        self._list_ros_topics = rospy.get_published_topics()
         # ---------------------------------
         # SUBSCRIBERS
         # ---------------------------------
-        # Status
-        self._subscriber_status = rospy.Subscriber('/velodyne_status_server/status_pub',
-                                                   VLP16_StatusMessage,
-                                                   self.cb_status,
-                                                   queue_size=10
-                                                   )
-        # Diagnostics
-        self._subscriber_status = rospy.Subscriber('/velodyne_diagnostics_server/diagnostics_pub',
-                                                   VLP16_DiagnosticsMessage,
-                                                   self.cb_diagnostics,
-                                                   queue_size=10
-                                                   )
+        self._subscriber_status = self._subscribe_to_topic(
+            '/velodyne_status_server/status_pub',
+            self.cb_status, queue_size=10)
+
+        # # Diagnostics
+        self._subscriber_status = self._subscribe_to_topic(
+            '/velodyne_diagnostics_server/diagnostics_pub',
+            self.cb_diagnostics, queue_size=10)
+
         # Settings
         # ---------------------------------
         self._VLP16Status = None
@@ -85,11 +90,13 @@ class LI3DSPlugin(Plugin):
         # ---------------------------------
         # Status
         self._update_GUI_status_timer = QTimer()
-        self._update_GUI_status_timer.timeout.connect(self.on_update_GUI_status_timer)
+        self._update_GUI_status_timer.timeout.connect(
+            self.on_update_GUI_status_timer)
         self._update_GUI_status_timer.setInterval(500)
         # Diagnostics
         self._update_GUI_diagnostics_timer = QTimer()
-        self._update_GUI_diagnostics_timer.timeout.connect(self.on_update_GUI_diagnostics_timer)
+        self._update_GUI_diagnostics_timer.timeout.connect(
+            self.on_update_GUI_diagnostics_timer)
         self._update_GUI_diagnostics_timer.setInterval(500)
         # Start QTimers
         self._update_GUI_status_timer.start()
@@ -118,6 +125,47 @@ class LI3DSPlugin(Plugin):
             '1.2v': 'bot_pwr_1_2v',
             'V in': 'bot_pwr_v_in'
         }
+
+    def _subscribe_to_topic(
+            self,
+            pub_name_searched,
+            callback,
+            queue_size=10):
+        """
+        """
+        ros_sub = None
+        try:
+            pub_name, pub_msg = self._search_ros_topic_message(
+                pub_name_searched)
+            rospy.logdebug(
+                'Subscribe to publisher: %s with message type: %s', pub_name, pub_msg)
+            ros_sub = rospy.Subscriber(pub_name,
+                                       eval(pub_msg),
+                                       callback,
+                                       queue_size=queue_size
+                                       )
+        except Exception as e:
+            rospy.logerr('Unexpected error: %s - error: %s',
+                         sys.exc_info()[0], e)
+        finally:
+            return ros_sub
+
+    def _search_ros_topic_message(self, pub_name_searched, from_import=True):
+        """
+        """
+        pub_name = None
+        pub_msg = None
+        try:
+            pub_filtered = filter(
+                lambda topic_msg: pub_name_searched in topic_msg[0],
+                self._list_ros_topics)[0]
+            pub_name, pub_msg = pub_filtered
+            if(from_import):
+                pub_msg = pub_msg.split('/')[-1]
+        except:
+            rospy.logerr('Unexpected error: %s', sys.exc_info()[0])
+        finally:
+            return pub_name, pub_msg
 
     def shutdown_plugin(self):
         # TODO unregister all publishers here
@@ -149,25 +197,33 @@ class LI3DSPlugin(Plugin):
         pass
 
     def cb_status(self, msg):
-        rospy.loginfo("cb_status - msg.laser_state: {}".format(msg.laser_state))
+        rospy.loginfo(
+            "cb_status - msg.laser_state: {}".format(msg.laser_state))
         self._VLP16Status = msg
 
     def cb_diagnostics(self, msg):
-        rospy.loginfo("cb_diagnostics - msg.top_ad_temp: {}".format(msg.top_ad_temp))
+        rospy.loginfo(
+            "cb_diagnostics - msg.top_ad_temp: {}".format(msg.top_ad_temp))
         self._VLP16Diagnostics = msg
 
     def on_update_GUI_status_timer(self):
         if self._VLP16Status:
-            self._widget.textEdit_laser_state.setText(str(self._VLP16Status.laser_state))
-            self._widget.textEdit_motor_state.setText(str(self._VLP16Status.motor_state))
-            self._widget.textEdit_motor_rpm.setText(str(self._VLP16Status.motor_rpm))
-            self._widget.textEdit_pps_state.setText(str(self._VLP16Status.gps_state))
-            self._widget.textEdit_gps_position.setText(str(self._VLP16Status.gps_position))
+            self._widget.textEdit_laser_state.setText(
+                str(self._VLP16Status.laser_state))
+            self._widget.textEdit_motor_state.setText(
+                str(self._VLP16Status.motor_state))
+            self._widget.textEdit_motor_rpm.setText(
+                str(self._VLP16Status.motor_rpm))
+            self._widget.textEdit_pps_state.setText(
+                str(self._VLP16Status.gps_state))
+            self._widget.textEdit_gps_position.setText(
+                str(self._VLP16Status.gps_position))
         #        rospy.loginfo("on_laser_state - self._laser_state: {}".format(self._laser_state))
 
     @staticmethod
     def _update_gui_from_ros_msg(qt_tree, ros_msg, map_tree_to_ros_msg):
-        # url: http://stackoverflow.com/questions/8961449/pyqt-qtreewidget-iterating
+        # url:
+        # http://stackoverflow.com/questions/8961449/pyqt-qtreewidget-iterating
         for row in range(qt_tree.childCount()):
             child = qt_tree.child(row)
             field = child.text(0)
@@ -196,5 +252,7 @@ class LI3DSPlugin(Plugin):
             # rospy.loginfo("tree_top_board.childCount(): {}".format(str(tree_top_board.childCount())))
             # rospy.loginfo("tree_bot_board.childCount(): {}".format(str(tree_bot_board.childCount())))
             #
-            self._update_gui_from_ros_msg(tree_top_board, self._VLP16Diagnostics, self.map_top_qt_ros_msg)
-            self._update_gui_from_ros_msg(tree_bot_board, self._VLP16Diagnostics, self.map_bot_qt_ros_msg)
+            self._update_gui_from_ros_msg(
+                tree_top_board, self._VLP16Diagnostics, self.map_top_qt_ros_msg)
+            self._update_gui_from_ros_msg(
+                tree_bot_board, self._VLP16Diagnostics, self.map_bot_qt_ros_msg)
