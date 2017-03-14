@@ -47,7 +47,7 @@
     </size>
    </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>2</number>
    </property>
    <widget class="QWidget" name="tab_record">
     <attribute name="title">
@@ -729,7 +729,7 @@ p, li { white-space: pre-wrap; }
      <item row="0" column="0">
       <widget class="QTabWidget" name="tabWidget_arduino">
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <widget class="QWidget" name="tab_commands">
         <attribute name="title">
@@ -1232,6 +1232,9 @@ p, li { white-space: pre-wrap; }
                <height>71</height>
               </size>
              </property>
+             <property name="whatsThis">
+              <string extracomment="Timers indication used by GPS"/>
+             </property>
              <property name="title">
               <string>t3</string>
              </property>
@@ -1392,7 +1395,7 @@ p, li { white-space: pre-wrap; }
            <property name="sizeHint" stdset="0">
             <size>
              <width>20</width>
-             <height>140</height>
+             <height>190</height>
             </size>
            </property>
           </spacer>

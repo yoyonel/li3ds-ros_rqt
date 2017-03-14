@@ -11,8 +11,8 @@ from PyQt4.QtCore import QTimer
 import sys
 
 # from std_msgs.msg import String
-from velodyne_configuration.msg import VLP16_StatusMessage
-from velodyne_configuration.msg import VLP16_DiagnosticsMessage
+# from velodyne_configuration.msg import VLP16_StatusMessage
+# from velodyne_configuration.msg import VLP16_DiagnosticsMessage
 
 
 class LI3DSPlugin(Plugin):
@@ -52,10 +52,14 @@ class LI3DSPlugin(Plugin):
         # tell from pane to pane.
         if context.serial_number() > 1:
             self._widget.setWindowTitle(
-                self._widget.windowTitle() + (' (%d)' % context.serial_number()))
+                self._widget.windowTitle() +
+                (' (%d)' % context.serial_number()))
         # Add widget to the user interface
         context.add_widget(self._widget)
 
+        self.states = {}
+
+        self.states['record'] = False
         # ---------------------------------
         # SETTING des connections slots
         # ---------------------------------
@@ -64,6 +68,24 @@ class LI3DSPlugin(Plugin):
             bool].connect(self.on_pushButton_record_on_clicked)
         self._widget.pushButton_record_off.clicked[
             bool].connect(self.on_pushButton_record_off_clicked)
+
+        self._update_record_pixmaps()
+
+        ##########
+        # ARDUINO
+        ##########
+        self.states['flash'] = True
+        self.states['start'] = False
+        self.states['pause'] = False
+        #
+        self._widget.pushButton_start.clicked[
+            bool].connect(self.on_pushButton_start_clicked)
+        self._widget.pushButton_flash.clicked[
+            bool].connect(self.on_pushButton_flash_clicked)
+        self._widget.pushButton_pause.clicked[
+            bool].connect(self.on_pushButton_pause_clicked)
+        #
+        self._update_states_pixmaps()
         # ---------------------------------
 
         #
@@ -126,6 +148,26 @@ class LI3DSPlugin(Plugin):
             'V in': 'bot_pwr_v_in'
         }
 
+    def _update_states_pixmaps(self):
+        """
+        """
+        self._widget.label_flash_pixmap_on.setEnabled(self.states['flash'])
+        self._widget.label_flash_pixmap_off.setEnabled(
+            not(self.states['flash']))
+        self._widget.label_start_pixmap_on.setEnabled(self.states['start'])
+        self._widget.label_start_pixmap_off.setEnabled(
+            not(self.states['start']))
+        self._widget.label_pause_pixmap_on.setEnabled(self.states['pause'])
+        self._widget.label_pause_pixmap_off.setEnabled(
+            not(self.states['pause']))
+
+    def _update_record_pixmaps(self):
+        """
+        """
+        self._widget.label_record_pixmap_on.setEnabled(self.states['record'])
+        self._widget.label_record_pixmap_off.setEnabled(
+            not(self.states['record']))
+
     def _subscribe_to_topic(
             self,
             pub_name_searched,
@@ -138,7 +180,8 @@ class LI3DSPlugin(Plugin):
             pub_name, pub_msg = self._search_ros_topic_message(
                 pub_name_searched)
             rospy.logdebug(
-                'Subscribe to publisher: %s with message type: %s', pub_name, pub_msg)
+                'Subscribe to publisher: %s with message type: %s',
+                pub_name, pub_msg)
             ros_sub = rospy.Subscriber(pub_name,
                                        eval(pub_msg),
                                        callback,
@@ -189,12 +232,32 @@ class LI3DSPlugin(Plugin):
     @Slot(bool)
     def on_pushButton_record_on_clicked(self, checked):
         rospy.loginfo("On a presse sur le bouton On du record!")
-        pass
+        self.states['record'] = True
+        self._update_record_pixmaps()
 
     @Slot(bool)
     def on_pushButton_record_off_clicked(self, checked):
         rospy.loginfo("On a presse sur le bouton Off du record!")
-        pass
+        self.states['record'] = False
+        self._update_record_pixmaps()
+
+    @Slot(bool)
+    def on_pushButton_start_clicked(self, checked):
+        rospy.loginfo("[Arduino][Commands] - 'Start' button pushed!")
+        self.states['start'] = not(self.states['start'])
+        self._update_states_pixmaps()
+
+    @Slot(bool)
+    def on_pushButton_flash_clicked(self, checked):
+        rospy.loginfo("[Arduino][Commands] - 'Flash' button pushed!")
+        self.states['flash'] = not(self.states['flash'])
+        self._update_states_pixmaps()
+
+    @Slot(bool)
+    def on_pushButton_pause_clicked(self, checked):
+        rospy.loginfo("[Arduino][Commands] - 'Pause' button pushed!")
+        self.states['pause'] = not(self.states['pause'])
+        self._update_states_pixmaps()
 
     def cb_status(self, msg):
         rospy.loginfo(
@@ -218,7 +281,8 @@ class LI3DSPlugin(Plugin):
                 str(self._VLP16Status.gps_state))
             self._widget.textEdit_gps_position.setText(
                 str(self._VLP16Status.gps_position))
-        #        rospy.loginfo("on_laser_state - self._laser_state: {}".format(self._laser_state))
+        # rospy.loginfo("on_laser_state - self._laser_state:
+        # {}".format(self._laser_state))
 
     @staticmethod
     def _update_gui_from_ros_msg(qt_tree, ros_msg, map_tree_to_ros_msg):

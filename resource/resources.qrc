@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/img">
+        <file>300px-Button_Icon_GreenBlue.svg.png</file>
+    </qresource>
+</RCC>
