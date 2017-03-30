@@ -1,3 +1,9 @@
+# Executable ROS
+scripts/
+
+# PyCharm
+.idea/
+
 build/
 bin/
 lib/
