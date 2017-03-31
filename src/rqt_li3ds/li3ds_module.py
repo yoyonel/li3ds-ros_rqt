@@ -6,7 +6,7 @@ import rostopic
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
-from python_qt_binding.QtGui import QWidget
+from python_qt_binding.QtGui import QWidget, QLabel
 from python_qt_binding.QtCore import Slot
 from PyQt4.QtCore import QTimer
 
@@ -25,6 +25,8 @@ import rosbag
 from subprocess import Popen, PIPE
 import signal
 import subprocess
+
+import time
 
 
 def terminate_process_and_children(p):
@@ -133,6 +135,8 @@ class LI3DSPlugin(Plugin):
         self._set_state('record', 'ins')
         self._set_state('record', 'vlp16')
         self._set_state('record', 'arduino')
+        #
+        self._set_state('record', 'pause', state=False)
 
         # ---------------------------------
         # SETTING des connections slots
@@ -140,6 +144,7 @@ class LI3DSPlugin(Plugin):
         #        rospy.loginfo("Test log!")
         self._widget.pushButton_record_on.clicked[bool].connect(self.on_pushButton_record_on_clicked)
         self._widget.pushButton_record_off.clicked[bool].connect(self.on_pushButton_record_off_clicked)
+        self._widget.pushButton_record_pause.clicked[bool].connect(self.on_pushButton_record_pause_clicked)
 
         self._update_record_pixmaps()
 
@@ -242,15 +247,25 @@ class LI3DSPlugin(Plugin):
         }
 
         # ROSBAG
-        self._rosbag_id_session = 0
         self._rosbag_split_duration = '1m'
         self._rosbag_path_to_record = '/root/project/records'
+        self._rosbag_filename = ""
+        #
+        self._rosbag_session = 0
+        self._rosbag_section = 0
+        #
+        self._rosbag_start_time = None
+        self._rosbag_pause_time = None
         #
         self._rosbag_topic_names = [
+            ##############################
             # Arduino
+            ##############################
             '/Arduino/pub/states',
             # '/Arduino/sub/cmds',
+            ##############################
             # INS: SBG Ellipse-N
+            ##############################
             '/INS/SbgLogEkfNavData',
             '/INS/SbgLogEkfQuatData',
             '/INS/SbgLogGpsPos',
@@ -261,12 +276,13 @@ class LI3DSPlugin(Plugin):
             '/INS/SbgLogShipMotionData',
             '/INS/SbgLogStatusData',
             '/INS/SbgLogUtcData',
+            ##############################
             # Laser: VLP-16
-            # TODO: [gpsimu_driver] faudrait revoir le ros node gpsimu_driver, il ne semble pas fonctionner
-            # '/Laser/gpsimu_driver/gpstime',
-            # '/Laser/gpsimu_driver/imu_data',
-            # '/Laser/gpsimu_driver/nmea_sentence',
-            # '/Laser/gpsimu_driver/temperature',
+            ##############################
+            '/Laser/gpsimu_driver/gpstime',
+            '/Laser/gpsimu_driver/imu_data',
+            '/Laser/gpsimu_driver/nmea_sentence',
+            '/Laser/gpsimu_driver/temperature',
             #
             # '/Laser/cloud_nodelet/parameter_descriptions',
             # '/Laser/cloud_nodelet/parameter_updates',
@@ -280,6 +296,7 @@ class LI3DSPlugin(Plugin):
             # '/Laser/velodyne_settings_server/parameter_updates',
             '/Laser/velodyne_settings_server/settings_pub',
             '/Laser/velodyne_status_server/status_pub',
+            ##############################
             #
             # '/diagnostics',
             # '/rosout',
@@ -417,7 +434,7 @@ class LI3DSPlugin(Plugin):
         #
         label_id_on = '%s_%s' % (label_id, 'on')
         label_id_off = '%s_%s' % (label_id, 'off')
-        rospy.loginfo("id_label_for_pixmap: %s - %s" % (label_id_on, label_id_off))
+        # rospy.loginfo("id_label_for_pixmap: %s - %s" % (label_id_on, label_id_off))
         try:
             self._widget.__dict__.get(label_id_on, None).setEnabled(state)
             self._widget.__dict__.get(label_id_off, None).setEnabled(not state)
@@ -440,7 +457,7 @@ class LI3DSPlugin(Plugin):
         id_label, state = self._build_base_label_id(device, command)
         id_label += '_pixmap'
         #
-        rospy.loginfo("id label for pixmap: %s" % id_label)
+        # rospy.loginfo("id label for pixmap: %s" % id_label)
         try:
             self._widget.__dict__.get(id_label, None).setEnabled(state)
         except AttributeError as e:
@@ -558,6 +575,77 @@ class LI3DSPlugin(Plugin):
         # This will enable a setting button (gear icon) in each dock widget title bar
         # Usually used to open a modal configuration dialog
 
+    def _launch_sequence_start_record(self, sequence_for_synch=True):
+        """
+
+        TODO: pour l'instant la sequence est blocante. A revoir quand une FSM sera mise en place.
+        """
+        # ELLAPSED-TIME
+        self._rosbag_start_time = time.time()
+
+        # On place la camera en position 'start' (via une commande Arduino)
+        self._set_state('arduino', 'start', state=True,
+                        update_label_pixmap=self._update_label_pixmap_onoff, update_ros=True)
+        rospy.loginfo("WAIT 1s => On place la camera en position 'start' ...")
+        # -> WAIT 1s => transmission du message vers l'arduino
+        time.sleep(1)
+
+        # [RECORD - BAG]
+        rospy.loginfo("RosBag Record: START")
+        self._rosbag_start_record()
+        rospy.loginfo("WAIT 5s => temporisation pour le lancement du rosbag record ...")
+        # -> WAIT 5s => lancement du rosbag record
+        time.sleep(5)
+
+        if sequence_for_synch:
+            # On place la camera en position 'stop' (via une commande Arduino)
+            self._set_state('arduino', 'start', state=False,
+                            update_label_pixmap=self._update_label_pixmap_onoff, update_ros=True)
+            rospy.loginfo("WAIT 1s => On place la camera en position 'stop' ...")
+            # -> Wait 1s => transmission du message vers l'arduino
+            time.sleep(1)
+
+            # -> WAIT 3s => Temporisation cote CamLight comme repere temporel
+            rospy.loginfo("WAIT 3s => Temporisation cote CamLight comme repere temporel")
+            time.sleep(3)
+
+            # On replace la camera en position 'start' (via une commande Arduino)
+            self._set_state('arduino', 'start', state=True,
+                            update_label_pixmap=self._update_label_pixmap_onoff, update_ros=True)
+            rospy.loginfo("WAIT 1s => On place la camera en position 'start' ...")
+            # -> Wait 1s => transmission du message vers l'arduino
+            time.sleep(1)
+
+    def _launch_sequence_stop_record(self, *args, **kwargs):
+        """
+
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        # On place la camera en position 'stop' (via une commande Arduino)
+        self._set_state('arduino', 'start', state=False,
+                        update_label_pixmap=self._update_label_pixmap_onoff, update_ros=True)
+        rospy.loginfo("WAIT 1s => On place la camera en position 'stop' ...")
+        # -> Wait 1s => transmission du message vers l'arduino
+        time.sleep(1)
+
+        # [RECORD - BAG]
+        rospy.loginfo("RosBag Record: STOP")
+        self._rosbag_stop_record(*args, **kwargs)
+
+        self._add_to_log('record', '[STOP] Ellapsed time from [START]: %s' % (time.time() - self._rosbag_start_time))
+
+    def _rosbag_build_name(self):
+        """
+
+        :return:
+        """
+        self._rosbag_filename = '%s/session%s_section%s_%s' % (self._rosbag_path_to_record,
+                                                               self._rosbag_session,
+                                                               self._rosbag_section,
+                                                               str(rospy.get_rostime()))
+
     def _rosbag_start_record(self):
         """
 
@@ -569,44 +657,87 @@ class LI3DSPlugin(Plugin):
         # command: record
         cmd += ['record']
         # options
-        ## output name
-        rosbag_filename = '%s/session%s_%s' % (self._rosbag_path_to_record,
-                                               self._rosbag_id_session,
-                                               str(rospy.get_rostime()))
-        cmd += ['-O', rosbag_filename]
-        ## split
+        # output name
+        self._rosbag_build_name()
+        cmd += ['-O', self._rosbag_filename]
+        # split
         cmd += ['--split', '--duration=%s' % self._rosbag_split_duration]
-        ## compression
+        # compression
         cmd += ['--lz4']
         # topics to record
         cmd += self._rosbag_topic_names
         #
         self._rosbag_process = Popen(cmd)
 
-        self._rosbag_id_session += 1
-
         # internal log
-        self._add_to_log('record', '[Start] Record RosBag: %s' % rosbag_filename)
+        self._add_to_log('record', '[Start] Record RosBag: %s' % self._rosbag_filename)
 
-    def _rosbag_stop_record(self):
+    def _rosbag_stop_record(self,
+                            ending_session=True,
+                            reset_section=True):
         """
 
+        :param ending_session:
+        :type ending_session: bool
+        :param reset_section:
+        :type reset_section: bool
         :return:
         """
         if self._rosbag_process:
-            terminate_process_and_children(self._rosbag_process)
+            try:
+                terminate_process_and_children(self._rosbag_process)
+            except AssertionError as e:
+                rospy.logerr('Probleme pour terminer rosbag record ...')
+                rospy.logerr('Unexpected error: %s - error: %s', sys.exc_info()[0], e)
             # internal log
             self._add_to_log('record', '[STOP] Record RosBag - pid: %s' % self._rosbag_process.pid)
+
+            # Update Session/Section
+            if ending_session:
+                self._rosbag_session += 1
+            #
+            if reset_section:
+                self._rosbag_section = 0
+                # ELLAPSED-TIME
+                self._rosbag_pause_time = None
+            else:
+                self._rosbag_section += 1
+
+    def _rosbag_pause_record(self):
+        """
+        """
+        #
+        self._set_state('record', 'pause', state=True,
+                        update_label_pixmap=self._update_label_enable)
+        #
+        self._launch_sequence_stop_record(ending_session=False, reset_section=False)
+
+        # ELLAPSED-TIME
+        if self._rosbag_pause_time:
+            self._add_to_log('record', '[PAUSE] Ellapsed time from last [PAUSE]: %s'
+                             % (time.time() - self._rosbag_pause_time))
+        # self._add_to_log('record', '[PAUSE] Ellapsed time from last [START]: %s'
+        #                  % (time.time() - self._rosbag_start_time))
+
+        self._rosbag_pause_time = time.time()
+
+    def _rosbag_unpause_record(self):
+        """
+        """
+        #
+        self._set_state('record', 'pause', state=False,
+                        update_label_pixmap=self._update_label_enable)
+        #
+        self._launch_sequence_start_record(sequence_for_synch=False)
 
     @Slot(bool)
     def on_pushButton_record_on_clicked(self, checked):
         rospy.loginfo("[Record] - 'ON' button pushed!")
         if not self._get_state('record'):
             #
-            self._set_state('record',
-                            state=True, update_label_pixmap=self._update_label_pixmap_onoff)
-            # [RECORD - BAG]
-            self._rosbag_start_record()
+            self._set_state('record', state=True, update_label_pixmap=self._update_label_pixmap_onoff)
+            #
+            self._launch_sequence_start_record()
 
 
     @Slot(bool)
@@ -614,16 +745,34 @@ class LI3DSPlugin(Plugin):
         rospy.loginfo("[Record] - 'OFF' button pushed!")
         if self._get_state('record'):
             #
-            self._set_state('record',
-                            state=False, update_label_pixmap=self._update_label_pixmap_onoff)
-            # [RECORD - BAG]
-            self._rosbag_stop_record()
+            self._set_state('record', state=False, update_label_pixmap=self._update_label_pixmap_onoff)
+            #
+            self._set_state('record', 'pause', state=False, update_label_pixmap=self._update_label_enable)
+            #
+            self._launch_sequence_stop_record()
+
+    @Slot(bool)
+    def on_pushButton_record_pause_clicked(self, checked):
+        rospy.loginfo("[Record] - 'PAUSE' button pushed!")
+        if self._get_state('record'):
+            if self._get_state('record', 'pause'):
+                self._set_state('record', 'pause', state=False,
+                                update_label_pixmap=self._update_label_enable)
+                #
+                self._rosbag_unpause_record()
+            else:
+                self._set_state('record', 'pause', state=True,
+                                update_label_pixmap=self._update_label_enable)
+                #
+                self._rosbag_pause_record()
 
     @Slot(bool)
     def on_pushButton_arduino_start_clicked(self, checked):
         rospy.loginfo("[Arduino][Commands] - 'Start' button pushed!")
+        #
         state = self._switch_state('arduino', 'start',
                                    update_label_pixmap=self._update_label_pixmap_onoff, update_ros=True)
+        #
         self._widget.pushButton_arduino_start.setText(str(('Disable' if state else 'Enable') + ' Start'))
 
     @Slot(bool)
@@ -661,8 +810,7 @@ class LI3DSPlugin(Plugin):
         :param msg:
         :type msg: VLP16_StatusMessage
         """
-        rospy.loginfo(
-            "_cb_vlp16_status - msg.laser_state: {}".format(msg.laser_state))
+        # rospy.loginfo("_cb_vlp16_status - msg.laser_state: {}".format(msg.laser_state))
         self._msg_vlp16_status = msg
 
     def _cb_vlp16_diagnostics(self, msg):
@@ -672,8 +820,7 @@ class LI3DSPlugin(Plugin):
         :type msg: VLP16_DiagnosticsMessage
         :return:
         """
-        rospy.loginfo(
-            "_cb_vlp16_diagnostics - msg.top_ad_temp: {}".format(msg.top_ad_temp))
+        # rospy.loginfo("_cb_vlp16_diagnostics - msg.top_ad_temp: {}".format(msg.top_ad_temp))
         self._msg_vlp16_diagnostics = msg
 
     def _cb_ins_status(self, msg):
@@ -682,8 +829,7 @@ class LI3DSPlugin(Plugin):
         :param msg:
         :type msg: SbgLogStatusData
         """
-        rospy.loginfo(
-            "_cb_ins_status- msg.generalStatus: {}".format(msg.generalStatus))
+        # rospy.loginfo("_cb_ins_status- msg.generalStatus: {}".format(msg.generalStatus))
         self._msg_ins_status = msg
 
     def _cb_arduino_states(self, msg):
@@ -692,9 +838,7 @@ class LI3DSPlugin(Plugin):
         :param msg:
         :type msg: arduino_msgs.msg.states
         """
-        # rospy.loginfo(
-        #     "_cb_arduino_states - type(msg): %s" % type(msg)
-        # )
+        # rospy.loginfo("_cb_arduino_states - type(msg): %s" % type(msg))
         self._msg_arduino_states = msg
 
     def _on_update_gui_vlp16_status_timer(self):
@@ -805,8 +949,8 @@ class LI3DSPlugin(Plugin):
         # - si l'arduino n'est pas en 'pause'
         self._devices_states_for_record['camlight'] = self._get_state('camlight', 'boot')
         self._devices_states_for_record['camlight'] &= (not self._get_state('camlight', 'validate'))
-        self._devices_states_for_record['camlight'] &= self._get_state('arduino', 'start')
-        self._devices_states_for_record['camlight'] &= (not self._get_state('arduino', 'pause'))
+        # self._devices_states_for_record['camlight'] &= self._get_state('arduino', 'start')
+        # self._devices_states_for_record['camlight'] &= (not self._get_state('arduino', 'pause'))
         # Arduino est pret pour l'enregistrement si connection ROS etablie
         self._devices_states_for_record['arduino'] = self._pub_arduino_commands.get_num_connections() > 0 if self._pub_arduino_commands else False
         # Laser (vlp16) est pret pour l'enregistrement si son statut est sur 'true' (statut recepure par message
