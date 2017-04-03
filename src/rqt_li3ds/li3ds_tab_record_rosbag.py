@@ -247,7 +247,7 @@ class LI3DSPlugin_Record_RosBag(LI3DSPlugin_Record):
         """
         #
         self.states.set_state('record', 'pause', state=True,
-                              update_label_pixmap=self._update_label_enable)
+                              update_label_pixmap=self.gui.update_label_enable)
         #
         self._launch_sequence_stop_record(ending_session=False, reset_section=False)
 
@@ -265,6 +265,6 @@ class LI3DSPlugin_Record_RosBag(LI3DSPlugin_Record):
         """
         #
         self.states.set_state('record', 'pause', state=False,
-                              update_label_pixmap=self._update_label_enable)
+                              update_label_pixmap=self.gui.update_label_enable)
         #
         self._launch_sequence_start_record(sequence_for_synch=False)

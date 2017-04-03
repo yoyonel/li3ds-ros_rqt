@@ -73,7 +73,8 @@ class LI3DSPlugin_VLP16(ILI3DSPlugin_Tabs):
     @pyqtSlot(bool)
     def on_pushButton_camlight_validate_clicked(self, checked):
         rospy.loginfo("[CamLight][Commands] - 'BOOT' button pushed!")
-        self.set_state('camlight', 'validate', state=False, update_label_pixmap=self._update_label_enable)
+        self.set_state('camlight', 'validate', state=False,
+                       update_label_pixmap=self.gui.update_label_enable)
 
     def _cb_vlp16_status(self, msg):
         """
