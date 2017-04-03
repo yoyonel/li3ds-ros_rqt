@@ -40,7 +40,7 @@ class LI3DSPlugin_CamLight(ILI3DSPlugin_Tabs):
         # Ne met a jour que si 'camlight/validate' est en status: 'faux'
         if not self.states.get_state('camlight', 'validate'):
             self.states.switch_state('camlight', 'boot',
-                                     update_label_pixmap=self.gui.update_label_pixmap_camlight, update_ros=True)
+                                     update_label_pixmap=self._update_label_pixmap_camlight, update_ros=True)
             #
             self.states.set_state('camlight', 'validate', state=True,
                                   update_label_pixmap=self.gui.update_label_enable)
