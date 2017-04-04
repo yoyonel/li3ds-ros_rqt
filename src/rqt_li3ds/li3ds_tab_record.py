@@ -1,6 +1,7 @@
 from PyQt4.QtCore import pyqtSlot, QTimer
 import rospy
 from li3ds_tabs import ILI3DSPlugin_Tabs
+from li3ds_tools import VirtualException
 
 
 class LI3DSPlugin_Record(ILI3DSPlugin_Tabs):
@@ -48,14 +49,21 @@ class LI3DSPlugin_Record(ILI3DSPlugin_Tabs):
         self.gui.update_label_pixmap_onoff('record', 'vlp16')
         self.gui.update_label_pixmap_onoff('record', 'camlight')
 
+    def _launch_sequence_start_record(self):
+        raise NotImplementedError('You need to define a _launch_sequence_start_record method!')
+
     @pyqtSlot(bool)
     def on_pushButton_record_on_clicked(self, checked):
         rospy.loginfo("[Record] - 'ON' button pushed!")
         if not self.states.get_state('record'):
             #
             self.states.set_state('record', state=True, update_label_pixmap=self.gui.update_label_pixmap_onoff)
-            #
+            # TODO: problem de design. Appel d'une methode de la classe fille: LI3DSPlugin_Record_RosBag par
+            # la classe mere: LI3DSPlugin_Record
             self._launch_sequence_start_record()
+
+    def _launch_sequence_stop_record(self):
+        raise NotImplementedError('You need to define a _launch_sequence_stop_record method!')
 
     @pyqtSlot(bool)
     def on_pushButton_record_off_clicked(self, checked):

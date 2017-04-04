@@ -120,3 +120,8 @@ def generate_list_rostopics(master):
     :return:
     """
     return rostopic._master_get_topic_types(master)
+
+
+class VirtualException(BaseException):
+    def __init__(self, _type, _func):
+        BaseException(self)
