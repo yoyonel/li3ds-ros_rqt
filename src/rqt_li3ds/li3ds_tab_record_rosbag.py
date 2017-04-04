@@ -40,7 +40,7 @@ class LI3DSPlugin_Record_RosBag(LI3DSPlugin_Record):
             self.progressBar.setRange(0, 1)
             self.verticalLayout.addWidget(self.progressBar)
 
-            self.myLongTask = LI3DSPlugin_Record_RosBag.TaskThread(li3ds_plugin_record)
+            self.myLongTask = LI3DSPlugin_Record_RosBag.TaskThread(li3ds_plugin_record, self.textBrowser)
             self.myLongTask.taskFinished.connect(self.onFinished)
 
         def showEvent(self, event):
@@ -58,32 +58,40 @@ class LI3DSPlugin_Record_RosBag(LI3DSPlugin_Record):
             # Stop the pulsation
             self.progressBar.setRange(0, 1)
             self.progressBar.setValue(1)
+            self.close()
 
     class TaskThread(QtCore.QThread):
         taskFinished = QtCore.pyqtSignal()
 
-        def __init__(self, li3ds_plugin_record=None):
+        def __init__(self, li3ds_plugin_record=None, textBrowser=None):
             """
 
             :param li3ds_plugin_record:
             """
             super(LI3DSPlugin_Record_RosBag.TaskThread, self).__init__()
+
             self._li3ds_plugin_record = li3ds_plugin_record
+            self._textBroswer = textBrowser
 
         def run(self):
             # launch record sequence
             # time.sleep(5.0)
             # On place la camera en position 'start' (via une commande Arduino)
-            self._li3ds_plugin_record.states.set_state('arduino', 'start', state=True,
-                                  update_label_pixmap=self._li3ds_plugin_record.gui.update_label_pixmap_onoff, update_ros=True)
-            rospy.loginfo("WAIT 1s => On place la camera en position 'start' ...")
+            self._li3ds_plugin_record.states.set_state(
+                'arduino', 'start', state=True,
+                update_label_pixmap=self._li3ds_plugin_record.gui.update_label_pixmap_onoff, update_ros=True)
+            msg = "WAIT 1s => On place la camera en position 'start' ..."
+            rospy.loginfo(msg)
+            self._textBroswer.append(msg)
             # -> WAIT 1s => transmission du message vers l'arduino
             time.sleep(1)
             # while self._li3ds_plugin._tab_arduino._msg_arduino_states.state_start:
             #     time.sleep(0.1)
 
             # [RECORD - BAG]
-            rospy.loginfo("RosBag Record: START")
+            msg = "RosBag Record: START"
+            rospy.loginfo(msg)
+            self._textBroswer.append(msg)
             self._li3ds_plugin_record._rosbag_start_record()
             # ps: au lancement de rosbag_start_record on attend d'avoir 2 processus rosbag actif
             # ce qui devrait signifier que l'outil rosbag record est actif/pret .. a verifier/tester.
@@ -94,23 +102,31 @@ class LI3DSPlugin_Record_RosBag(LI3DSPlugin_Record):
             sequence_for_synch = True
             if sequence_for_synch:
                 # On place la camera en position 'stop' (via une commande Arduino)
-                self._li3ds_plugin_record.states.set_state('arduino', 'start', state=False,
-                                      update_label_pixmap=self._li3ds_plugin_record.gui.update_label_pixmap_onoff, update_ros=True)
+                self._li3ds_plugin_record.states.set_state(
+                    'arduino', 'start', state=False,
+                    update_label_pixmap=self._li3ds_plugin_record.gui.update_label_pixmap_onoff, update_ros=True)
 
-                rospy.loginfo("WAIT 1s => On place la camera en position 'stop' ...")
+                msg = "WAIT 1s => On place la camera en position 'stop' ..."
+                rospy.loginfo(msg)
+                self._textBroswer.append(msg)
                 # -> Wait 1s => transmission du message vers l'arduino
                 time.sleep(1)
                 # while not self._li3ds_plugin._tab_arduino._msg_arduino_states.state_start:
                 #     time.sleep(0.1)
 
                 # -> WAIT 3s => Temporisation cote CamLight comme repere temporel
-                rospy.loginfo("WAIT 3s => Temporisation cote CamLight comme repere temporel")
+                msg = "WAIT 3s => Temporisation cote CamLight comme repere temporel"
+                rospy.loginfo(msg)
+                self._textBroswer.append(msg)
                 time.sleep(3)
 
                 # On replace la camera en position 'start' (via une commande Arduino)
-                self._li3ds_plugin_record.states.set_state('arduino', 'start', state=True,
-                                      update_label_pixmap=self._li3ds_plugin_record.gui.update_label_pixmap_onoff, update_ros=True)
-                rospy.loginfo("WAIT 1s => On place la camera en position 'start' ...")
+                self._li3ds_plugin_record.states.set_state(
+                    'arduino', 'start', state=True,
+                    update_label_pixmap=self._li3ds_plugin_record.gui.update_label_pixmap_onoff, update_ros=True)
+                msg = "WAIT 1s => On place la camera en position 'start' ..."
+                rospy.loginfo(msg)
+                self._textBroswer.append(msg)
                 # -> Wait 1s => transmission du message vers l'arduino
                 time.sleep(1)
                 # while self._li3ds_plugin._tab_arduino._msg_arduino_states.state_start:

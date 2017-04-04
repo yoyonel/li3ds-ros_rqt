@@ -1,6 +1,14 @@
+import os
+import rospkg
+
 from li3ds_tabs import ILI3DSPlugin_Tabs
 from PyQt4.QtCore import pyqtSlot, QTimer
 import rospy
+
+# from PyQt4.QtGui import QSound
+# from playsound import playsound
+import pyaudio
+import wave
 
 from li3ds_tools import iternodes
 
@@ -65,6 +73,45 @@ class LI3DSPlugin_Arduino(ILI3DSPlugin_Tabs):
         )
 
         self._msg_arduino_states = None
+
+        rp = rospkg.RosPack()
+        self.path_to_sound = path_to_sound = os.path.join(rp.get_path('rqt_li3ds'), 'resource', 'Click2-Sebastian-759472264.wav')
+        # self._sounds = {
+        #     'click': QSound(path_to_sound, self._li3ds_plugin.widget)
+        # }
+
+        # urls:
+        # - https://github.com/Katee/quietnet/issues/18
+        # - http://stackoverflow.com/questions/17657103/how-to-play-wav-file-in-python
+        # - http://soundbible.com/1705-Click2.html
+        # define stream chunk
+        self.chunk = chunk = 1024
+
+        # open a wav format music
+        self.f = f = wave.open(r"%s" % path_to_sound, "rb")
+        # instantiate PyAudio
+        p = pyaudio.PyAudio()
+        # open stream
+        self.stream = stream = p.open(format=p.get_format_from_width(f.getsampwidth()),
+                        channels=f.getnchannels(),
+                        rate=f.getframerate(),
+                        output=True)
+        # read data
+        self.data = data = f.readframes(chunk)
+
+        # # play stream
+        # while data:
+        #     stream.write(data)
+        #     data = f.readframes(chunk)
+
+        # # stop stream
+        # stream.stop_stream()
+        # stream.close()
+        #
+        # # close PyAudio
+        # p.terminate()
+
+        self._li3ds_plugin.loginfo('arduino', 'path_to_sound: %s' % path_to_sound)
 
     def _update_arduino_states_pixmaps(self):
         """
@@ -135,6 +182,23 @@ class LI3DSPlugin_Arduino(ILI3DSPlugin_Tabs):
         """
         # rospy.loginfo("_cb_arduino_states - type(msg): %s" % type(msg))
         self._msg_arduino_states = msg
+
+        if msg.state_start & (not msg.state_pause):
+            try:
+                data = self.data
+                stream = self.stream
+                f = self.f
+                chunk = self.chunk
+
+                stream.start_stream()
+                # play stream
+                while data:
+                    stream.write(data)
+                    data = f.readframes(chunk)
+                stream.stop_stream()
+                f.rewind()
+            except:
+                pass
 
     def _publish_arduino_states(self):
         """

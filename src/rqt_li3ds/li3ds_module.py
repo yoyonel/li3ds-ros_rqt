@@ -87,6 +87,14 @@ class LI3DSPlugin(Plugin):
         """
         return self._li3ds_ros
 
+    @property
+    def widget(self):
+        """
+
+        :return:
+        """
+        return self._widget
+
     def loginfo(self, device, msg, roslog=True):
         """
 
