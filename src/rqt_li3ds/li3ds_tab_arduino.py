@@ -69,6 +69,7 @@ class LI3DSPlugin_Arduino(ILI3DSPlugin_Tabs):
 
         self._msg_arduino_states = None
 
+        self._play_sound = True
         rp = rospkg.RosPack()
         self.path_to_sound = path_to_sound = os.path.join(rp.get_path('rqt_li3ds'), 'resource',
                                                           'Click2-Sebastian-759472264.wav')
@@ -151,22 +152,7 @@ class LI3DSPlugin_Arduino(ILI3DSPlugin_Tabs):
         # rospy.loginfo("_cb_arduino_states - type(msg): %s" % type(msg))
         self._msg_arduino_states = msg
 
-        if msg.state_start & (not msg.state_pause):
-            # try:
-            #     data = self.data
-            #     stream = self.stream
-            #     f = self.f
-            #     chunk = self.chunk
-            #
-            #     stream.start_stream()
-            #     # play stream
-            #     while data:
-            #         stream.write(data)
-            #         data = f.readframes(chunk)
-            #     stream.stop_stream()
-            #     f.rewind()
-            # except:
-            #     pass
+        if self._play_sound & msg.state_start & (not msg.state_pause):
             self._sounds['click'].play()
 
     def _publish_arduino_states(self):
