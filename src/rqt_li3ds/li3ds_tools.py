@@ -3,6 +3,8 @@ import subprocess
 import signal
 import os
 import rostopic
+import pyaudio
+import wave
 
 
 def print_err(*args):
@@ -125,3 +127,34 @@ def generate_list_rostopics(master):
 class VirtualException(BaseException):
     def __init__(self, _type, _func):
         BaseException(self)
+
+
+class AudioFile:
+    chunk = 1024
+
+    def __init__(self, file):
+        """ Init audio stream """
+        self.wf = wave.open(file, 'rb')
+        self.p = pyaudio.PyAudio()
+        self.stream = self.p.open(
+            format=self.p.get_format_from_width(self.wf.getsampwidth()),
+            channels=self.wf.getnchannels(),
+            rate=self.wf.getframerate(),
+            output=True
+        )
+
+    def play(self, rewind=True):
+        """ Play entire file """
+        data = self.wf.readframes(self.chunk)
+        self.stream.start_stream()
+        while data != '':
+            self.stream.write(data)
+            data = self.wf.readframes(self.chunk)
+        self.stream.stop_stream()
+        if rewind:
+            self.wf.rewind()
+
+    def close(self):
+        """ Graceful shutdown """
+        self.stream.close()
+        self.p.terminate()
