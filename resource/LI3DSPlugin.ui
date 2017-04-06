@@ -60,7 +60,7 @@
         <enum>QTabWidget::Rounded</enum>
        </property>
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <property name="iconSize">
         <size>
@@ -781,7 +781,7 @@
               <enum>Qt::LeftToRight</enum>
              </property>
              <property name="currentIndex">
-              <number>0</number>
+              <number>1</number>
              </property>
              <widget class="QWidget" name="tab_commands">
               <attribute name="title">
@@ -1284,6 +1284,11 @@ p, li { white-space: pre-wrap; }
                   <item>
                    <property name="text">
                     <string>nb_trigs</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>time_between_pics</string>
                    </property>
                   </item>
                   <item>

@@ -51,6 +51,7 @@ class LI3DSPlugin_Arduino(ILI3DSPlugin_Tabs):
             '/CamLight/nb_trigs': lambda msg: msg.num_trigs_for_pics,
             '/CamLight/states/boot': lambda msg: msg.state_boot
         }
+        # '/CamLight/time_between_pics': lambda msg: msg.time_between_pics,
 
         # ---------------------------------
         # PUBLISHERS
