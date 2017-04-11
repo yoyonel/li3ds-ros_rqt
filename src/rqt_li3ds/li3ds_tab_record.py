@@ -106,7 +106,7 @@ class LI3DSPlugin_Record(ILI3DSPlugin_Tabs):
         # Arduino est pret pour l'enregistrement si connection ROS etablie
         # TODO: probleme de design a ce niveau. IL faut un devices/tabs manager !
         # Record ne devrait pas rentrer dans la structure de 'li3ds_plugin' pour chercher les etats des devices !
-        _pub_arduino_commands = self._li3ds_plugin._tab_arduino._pub_arduino_commands
+        _pub_arduino_commands = self.li3ds_plugin._tab_arduino._pub_arduino_commands
         if _pub_arduino_commands:
             self._devices_states_for_record['arduino'] = _pub_arduino_commands.get_num_connections() > 0
         else:
@@ -114,14 +114,14 @@ class LI3DSPlugin_Record(ILI3DSPlugin_Tabs):
         # Laser (vlp16) est pret pour l'enregistrement si son statut est sur 'true' (statut recepure par message
         # ROS transmis par le node qui communique avec le webserver du VLP-16)
         # TODO: probleme de design a ce niveau. IL faut un devices/tabs manager !
-        _msg_vlp16_status = self._li3ds_plugin._tab_vlp16._msg_vlp16_status
+        _msg_vlp16_status = self.li3ds_plugin.tab('vlp16').msg_status
         if _msg_vlp16_status:
             self._devices_states_for_record['vlp16'] = _msg_vlp16_status.laser_state
         else:
             self._devices_states_for_record['vlp16'] = False
         #
         # TODO: probleme de design a ce niveau. IL faut un devices/tabs manager !
-        _msg_ins_status = self._li3ds_plugin._tab_ins._msg_ins_status
+        _msg_ins_status = self.li3ds_plugin.tab('ins').msg_status
         if _msg_ins_status:
             self._devices_states_for_record['ins'] = _msg_ins_status.generalStatus == 63
         else:

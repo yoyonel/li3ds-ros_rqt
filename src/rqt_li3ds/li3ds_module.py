@@ -76,6 +76,14 @@ class LI3DSPlugin(Plugin):
         self._tab_vlp16 = LI3DSPlugin_VLP16(**self._managers_for_tabs)
         self._tab_ins = LI3DSPlugin_INS(**self._managers_for_tabs)
         self._tab_camlight = LI3DSPlugin_CamLight(**self._managers_for_tabs)
+
+        self._tabs = {
+            'arduino': self._tab_arduino,
+            'vlp16': self._tab_vlp16,
+            'ins': self._tab_ins,
+            'camlight': self._tab_camlight,
+        }
+
         #
         self._tab_record = LI3DSPlugin_Record_RosBag(**self._managers_for_tabs)
 
@@ -94,6 +102,14 @@ class LI3DSPlugin(Plugin):
         :return:
         """
         return self._widget
+
+    def tab(self, id_tab):
+        """
+
+        :param id_tab:
+        :return:
+        """
+        return self._tabs[id_tab]
 
     def loginfo(self, device, msg, roslog=True):
         """

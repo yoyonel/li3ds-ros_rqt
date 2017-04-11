@@ -8,7 +8,7 @@ class LI3DSPlugin_States(object):
         :param li3ds_plugin:
         """
 
-        self._li3ds_plugin = li3ds_plugin
+        self.li3ds_plugin = li3ds_plugin
 
         # dictionnaire des etats (GUI, Devices, ...)
         self._states = {}
@@ -26,7 +26,7 @@ class LI3DSPlugin_States(object):
             update_label_pixmap(device, command)
         # ROS
         if update_ros:
-            self._li3ds_plugin._tab_arduino.state_updated()
+            self.li3ds_plugin.tab('arduino').state_updated()
 
     def get_state(self, device, command=''):
         """

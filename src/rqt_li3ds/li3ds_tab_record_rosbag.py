@@ -7,6 +7,9 @@ import rospy
 
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
+from PyQt4.QtCore import pyqtSlot
+
+from li3ds_tab_arduino import LI3DSPlugin_Arduino
 
 
 class LI3DSPlugin_Record_RosBag(LI3DSPlugin_Record):
@@ -26,7 +29,7 @@ class LI3DSPlugin_Record_RosBag(LI3DSPlugin_Record):
             """
             super(LI3DSPlugin_Record_RosBag.DialogForSequenceRecord, self).__init__(parent)
 
-            self._li3ds_plugin_record = li3ds_plugin_record
+            self.li3ds_plugin_record = li3ds_plugin_record
 
             self.buttonBox = QtGui.QDialogButtonBox(self)
             self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
@@ -44,7 +47,7 @@ class LI3DSPlugin_Record_RosBag(LI3DSPlugin_Record):
 
             self.taskRecordSequence = LI3DSPlugin_Record_RosBag.TaskThread(
                 parent=self,
-                li3ds_plugin_record=self._li3ds_plugin_record,
+                li3ds_plugin_record=self.li3ds_plugin_record,
                 textBrowser=self.textBrowser
             )
             self.taskRecordSequence.notifyProgress.connect(self.onProgress)
@@ -109,7 +112,7 @@ class LI3DSPlugin_Record_RosBag(LI3DSPlugin_Record):
             """
             super(LI3DSPlugin_Record_RosBag.TaskThread, self).__init__(parent)
 
-            self._li3ds_plugin_record = li3ds_plugin_record
+            self.li3ds_plugin_record = li3ds_plugin_record
             self._textBroswer = textBrowser
             self._sequence_for_synch = sequence_for_synch
 
@@ -129,32 +132,32 @@ class LI3DSPlugin_Record_RosBag(LI3DSPlugin_Record):
             # launch record sequence
             msg = "WAIT => on place la camera en position 'start' ..."
             self._textBroswer.append(msg)
-            self._li3ds_plugin_record._launch_sequence_start_record_state_set_cam_on_start()
+            self.li3ds_plugin_record._launch_sequence_start_record_state_set_cam_on_start()
             self.notifyProgress.emit(10)
 
             # [RECORD - BAG]
             msg = "RosBag Record: START"
             self._textBroswer.append(msg)
-            self._li3ds_plugin_record._launch_sequence_start_record_state_launch_rosbag_record()
+            self.li3ds_plugin_record._launch_sequence_start_record_state_launch_rosbag_record()
             self.notifyProgress.emit(50)
 
             if self._sequence_for_synch:
                 # On place la camera en position 'stop' (via une commande Arduino)
                 msg = "WAIT => on place la camera en position 'stop' ..."
                 self._textBroswer.append(msg)
-                self._li3ds_plugin_record._launch_sequence_start_record_state_set_cam_on_stop()
+                self.li3ds_plugin_record._launch_sequence_start_record_state_set_cam_on_stop()
                 self.notifyProgress.emit(60)
 
                 # -> WAIT 3s => Temporisation cote CamLight comme repere temporel
                 msg = "WAIT 3s => Temporisation cote CamLight comme repere temporel"
                 self._textBroswer.append(msg)
-                self._li3ds_plugin_record._launch_sequence_start_record_state_wait_for_temporal_synch()
+                self.li3ds_plugin_record._launch_sequence_start_record_state_wait_for_temporal_synch()
                 self.notifyProgress.emit(90)
 
                 # On replace la camera en position 'start' (via une commande Arduino)
                 msg = "WAIT => on place la camera en position 'start' ..."
                 self._textBroswer.append(msg)
-                self._li3ds_plugin_record._launch_sequence_start_record_state_set_cam_on_start()
+                self.li3ds_plugin_record._launch_sequence_start_record_state_set_cam_on_start()
                 self.notifyProgress.emit(100)
 
             #
@@ -237,33 +240,83 @@ class LI3DSPlugin_Record_RosBag(LI3DSPlugin_Record):
 
         self._rosbag_process = None
 
-    def _launch_sequence_start_record_state_set_cam_on_start(self):
+        self._arduino_state_start = None
+
+        self._tab_arduino = self.li3ds_plugin.tab('arduino')
+
+    @pyqtSlot(bool)
+    def _slot_arduino_state_start_on(self):
+        rospy.loginfo("_arduino_state_start_on")
+        self._arduino_state_start = True
+
+    @pyqtSlot(bool)
+    def _slot_arduino_state_start_off(self):
+        rospy.loginfo("_arduino_state_start_off")
+        self._arduino_state_start = False
+
+    def _launch_sequence_start_record_state_set_cam_on_start(self, wait_with_signals=True):
+        """
+
+        :param wait_with_signals:
+        :return:
+        """
         # On place la camera en position 'start' (via une commande Arduino)
         self.states.set_state('arduino', 'start', state=True,
                               update_label_pixmap=self.gui.update_label_pixmap_onoff, update_ros=True)
         rospy.loginfo("WAIT 1s => On place la camera en position 'start' ...")
-        # -> WAIT 1s => transmission du message vers l'arduino
-        # time.sleep(1)
-        while self._li3ds_plugin._tab_arduino._msg_arduino_states.state_start:
-            time.sleep(0.1)
 
-    def _launch_sequence_start_record_state_launch_rosbag_record(self):
+        if wait_with_signals:
+            self._arduino_state_start = None
+            # Connect to Qt signals (from tab_arduino)
+            self._tab_arduino.signal_arduino_state_start_on.connect(self._slot_arduino_state_start_on)
+            self._tab_arduino.signal_arduino_state_start_off.connect(self._slot_arduino_state_start_off)
+            while (self._arduino_state_start is None) or (not self._arduino_state_start):
+                time.sleep(0.2)
+            # Disconnect to Qt signals
+            self._tab_arduino.signal_arduino_state_start_on.disconnect()
+            self._tab_arduino.signal_arduino_state_start_off.disconnect()
+        else:
+            # -> WAIT 1s => transmission du message vers l'arduino
+            time.sleep(1)
+            # while self.li3ds_plugin._tab_arduino._msg_arduino_states.state_start:
+            #     time.sleep(1.0)
+
+    def _launch_sequence_start_record_state_launch_rosbag_record(self, wait_with_signals=True):
         # [RECORD - BAG]
         rospy.loginfo("RosBag Record: START")
         rospy.loginfo("WAIT => Lancement du rosbag record ...")
         self._rosbag_start_record()
 
-    def _launch_sequence_start_record_state_set_cam_on_stop(self):
+    def _launch_sequence_start_record_state_set_cam_on_stop(self, wait_with_signals=True):
+        """
+
+        :param wait_with_signals:
+        :return:
+        """
         # On place la camera en position 'start' (via une commande Arduino)
         self.states.set_state('arduino', 'start', state=False,
                               update_label_pixmap=self.gui.update_label_pixmap_onoff, update_ros=True)
         rospy.loginfo("WAIT 1s => On place la camera en position 'stop' ...")
-        # -> WAIT 1s => transmission du message vers l'arduino
-        # time.sleep(1)
-        while not self._li3ds_plugin._tab_arduino._msg_arduino_states.state_start:
-            time.sleep(0.1)
 
-    def _launch_sequence_start_record_state_wait_for_temporal_synch(self, wait_nb_sec=3):
+        if wait_with_signals:
+            self._arduino_state_start = None
+            # Connect to Qt signals (from tab_arduino)
+            self._tab_arduino.signal_arduino_state_start_on.connect(self._slot_arduino_state_start_on)
+            self._tab_arduino.signal_arduino_state_start_off.connect(self._slot_arduino_state_start_off)
+            while (self._arduino_state_start is None) or self._arduino_state_start:
+                time.sleep(0.2)
+            # Disconnect to Qt signals
+            # url: http://stackoverflow.com/questions/21586643/pyqt-widget-connect-and-disconnect
+            self._tab_arduino.signal_arduino_state_start_on.disconnect()
+            self._tab_arduino.signal_arduino_state_start_off.disconnect()
+        else:
+            # -> WAIT 1s => transmission du message vers l'arduino
+            time.sleep(1)
+            # while not self.li3ds_plugin._tab_arduino._msg_arduino_states.state_start:
+            #     time.sleep(1.0)
+
+    @staticmethod
+    def _launch_sequence_start_record_state_wait_for_temporal_synch(wait_nb_sec=3):
         """
 
         :param wait_nb_sec:

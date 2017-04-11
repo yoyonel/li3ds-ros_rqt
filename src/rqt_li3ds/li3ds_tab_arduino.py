@@ -2,13 +2,17 @@ import os
 import rospkg
 
 from li3ds_tabs import ILI3DSPlugin_Tabs
-from PyQt4.QtCore import pyqtSlot, QTimer
+from PyQt4.QtCore import pyqtSlot, QTimer, pyqtSignal
 import rospy
 
 from li3ds_tools import iternodes, AudioFile
 
 
 class LI3DSPlugin_Arduino(ILI3DSPlugin_Tabs):
+    # Qt Signals
+    signal_arduino_state_start_on = pyqtSignal()
+    signal_arduino_state_start_off = pyqtSignal()
+
     def __init__(self, *args, **kwargs):
         """
 
@@ -81,7 +85,7 @@ class LI3DSPlugin_Arduino(ILI3DSPlugin_Tabs):
         self._sounds = {
             'click': AudioFile(path_to_sound)
         }
-        self._li3ds_plugin.loginfo('arduino', 'path_to_sound: %s' % path_to_sound)
+        self.li3ds_plugin.loginfo('arduino', 'path_to_sound: %s' % path_to_sound)
 
     def _update_arduino_states_pixmaps(self):
         """
@@ -153,8 +157,24 @@ class LI3DSPlugin_Arduino(ILI3DSPlugin_Tabs):
         # rospy.loginfo("_cb_arduino_states - type(msg): %s" % type(msg))
         self._msg_arduino_states = msg
 
+        if msg.state_start:
+            self.signal_arduino_state_start_on.emit()
+        else:
+            self.signal_arduino_state_start_off.emit()
+
         if self._play_sound & msg.state_start & (not msg.state_pause):
             self._sounds['click'].play()
+
+    def connect_signal(self, signal, cb):
+        """
+
+        :param signal:
+        :param cb:
+        :return:
+        """
+        # self.__class__.__dict__.get(signal).connect(cb)
+        # self.__class__.__dict__.get('signal_arduino_state_start_on').connect(cb)
+        self.signal_arduino_state_start_on.connect(cb)
 
     def _publish_arduino_states(self):
         """

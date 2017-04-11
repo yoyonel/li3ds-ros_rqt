@@ -29,10 +29,14 @@ class ILI3DSPlugin_Tabs(QObject):
     def ros(self):
         return self._ros
 
+    @property
+    def li3ds_plugin(self):
+        return self._li3ds_plugin
+
     def loginfo(self, *args):
         """
 
         :param args:
         :return:
         """
-        return self._li3ds_plugin.loginfo(*args)
+        return self.li3ds_plugin.loginfo(*args)

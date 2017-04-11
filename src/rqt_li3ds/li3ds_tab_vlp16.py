@@ -70,6 +70,14 @@ class LI3DSPlugin_VLP16(ILI3DSPlugin_Tabs):
             'V in': 'bot_pwr_v_in'
         }
 
+    @property
+    def msg_status(self):
+        return self._msg_vlp16_status
+
+    @property
+    def msg_diagnostic(self):
+        return self._msg_vlp16_diagnostics
+
     @pyqtSlot(bool)
     def on_pushButton_camlight_validate_clicked(self, checked):
         rospy.loginfo("[CamLight][Commands] - 'BOOT' button pushed!")

@@ -21,6 +21,10 @@ class LI3DSPlugin_INS(ILI3DSPlugin_Tabs):
         # ---------------------------------
         self._msg_ins_status = None
 
+    @property
+    def msg_status(self):
+        return self._msg_ins_status
+
     def _cb_ins_status(self, msg):
         """
 
