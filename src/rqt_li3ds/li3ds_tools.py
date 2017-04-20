@@ -6,6 +6,11 @@ import rostopic
 import pyaudio
 import wave
 
+try:
+    import pygame.mixer, pygame.time
+except:
+    print("Can't load python package: pygame !")
+
 
 def print_err(*args):
     sys.stderr.write(' '.join(map(str,args)) + '\n')
@@ -158,3 +163,39 @@ class AudioFile:
         """ Graceful shutdown """
         self.stream.close()
         self.p.terminate()
+
+
+class AudioFileWithPygame:
+    _mixer = pygame.mixer
+    try:
+        print("Init pygame.mixer ...")
+        _mixer.init()
+        _audio_is_init = True
+    except:
+        _audio_is_init = False
+
+    def __init__(self, audio_filename):
+        """
+        Init audio stream
+
+        :param audio_filename:
+        """
+        self._channel = None
+        self._audio = None
+
+        if self._audio_is_init:
+            self._audio = self._mixer.Sound(audio_filename)
+
+    def play(self):
+        """
+        Play entire file
+
+        """
+        if self._audio_is_init:
+            try:
+                self._channel = self._audio.play()
+
+                while self._channel.get_busy():
+                    pygame.time.wait(100)  # ms
+            except:
+                pass

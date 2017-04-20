@@ -5,7 +5,7 @@ from li3ds_tabs import ILI3DSPlugin_Tabs
 from PyQt4.QtCore import pyqtSlot, QTimer, pyqtSignal
 import rospy
 
-from li3ds_tools import iternodes, AudioFile
+from li3ds_tools import iternodes, AudioFile, AudioFileWithPygame
 
 
 class LI3DSPlugin_Arduino(ILI3DSPlugin_Tabs):
@@ -83,7 +83,8 @@ class LI3DSPlugin_Arduino(ILI3DSPlugin_Tabs):
         # - http://stackoverflow.com/questions/17657103/how-to-play-wav-file-in-python
         # - http://soundbible.com/1705-Click2.html
         self._sounds = {
-            'click': AudioFile(path_to_sound)
+            # 'click': AudioFile(path_to_sound),
+            'click_pygame': AudioFileWithPygame(path_to_sound)
         }
         self.li3ds_plugin.loginfo('arduino', 'path_to_sound: %s' % path_to_sound)
 
@@ -163,7 +164,8 @@ class LI3DSPlugin_Arduino(ILI3DSPlugin_Tabs):
             self.signal_arduino_state_start_off.emit()
 
         if self._play_sound & msg.state_start & (not msg.state_pause):
-            self._sounds['click'].play()
+            # self._sounds['click'].play()
+            self._sounds['click_pygame'].play()
 
     def connect_signal(self, signal, cb):
         """
