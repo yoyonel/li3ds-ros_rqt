@@ -45,6 +45,7 @@
   <run_depend>rospy</run_depend>
   <run_depend>rqt_gui_py</run_depend>
   <run_depend>python-pyaudio</run_depend>
+  <run_depend>python-pygame</run_depend>
 
   <!-- Velodyne Configuration: [build|run]_depends -->
   <build_depend>velodyne_configuration</build_depend>
